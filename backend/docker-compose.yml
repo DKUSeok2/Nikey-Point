@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  db:
+    image: postgres:15-alpine
+    container_name: nikepoint_db
+    environment:
+      POSTGRES_DB: nikepoint
+      POSTGRES_USER: nikepoint
+      POSTGRES_PASSWORD: dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nikepoint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nikepoint_network
+
+  # Redis (Celery 브로커)
+  redis:
+    image: redis:7-alpine
+    container_name: nikepoint_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - nikepoint_network
+
+  # FastAPI 웹 서버
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nikepoint_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src  # 코드 hot-reload
+      - ./storage:/app/storage  # 영상 저장소
+    environment:
+      DATABASE_URL: postgresql://nikepoint:dev_password@db:5432/nikepoint
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_PATH: /app/storage/videos
+      MEDIAPIPE_MODEL_COMPLEXITY: 2
+      MEDIAPIPE_MIN_DETECTION_CONFIDENCE: 0.5
+      MEDIAPIPE_MIN_TRACKING_CONFIDENCE: 0.5
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - nikepoint_network
+
+  # Celery Worker (영상 처리)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nikepoint_worker
+    volumes:
+      - ./src:/app/src
+      - ./storage:/app/storage
+    environment:
+      DATABASE_URL: postgresql://nikepoint:dev_password@db:5432/nikepoint
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_PATH: /app/storage/videos
+      MEDIAPIPE_MODEL_COMPLEXITY: 2
+      MEDIAPIPE_MIN_DETECTION_CONFIDENCE: 0.5
+      MEDIAPIPE_MIN_TRACKING_CONFIDENCE: 0.5
+    depends_on:
+      - redis
+      - db
+    command: celery -A src.workers.tasks worker --loglevel=info --concurrency=2
+    networks:
+      - nikepoint_network
+
+volumes:
+  postgres_data:
+
+networks:
+  nikepoint_network:
+    driver: bridge
