@@ -142,14 +142,23 @@ def build_contact_overstride_table(
         )
 
     out = pd.DataFrame(rows)
+    '''
+    1) 이상치 처리: 음수 제거 (원하면 옵션으로 끌 수 있게)
+       방향(direction)을 고려해 "앞"이 +가 되게 만들려면 ratio/dx 계산 정책도 같이 봐야 하지만,
+       지금은 네 요구대로 dx<0 제거를 기본으로 둠.
+    '''
+    drop_negative = True  # <- 기본 정책 (원하면 함수 인자로 빼자)
+    if drop_negative and ("overstride_dx" in out.columns):
+        out = out[out["overstride_dx"] >= 0].reset_index(drop=True)
 
+    #2) 정렬
+    if len(out) > 0:
+        out = out.sort_values(["frame", "side"]).reset_index(drop=True)
+    
+    #3) CSV저장 (필터/정렬 적용된 결과를 저장)
     if csv_out_path is not None:
         os.makedirs(os.path.dirname(csv_out_path) or ".", exist_ok=True)
         out.to_csv(csv_out_path, index=False)
-
-    if len(out) == 0:
-        return out
-
-    out = out.sort_values(["frame", "side"]).reset_index(drop=True)
+    
     return out
 

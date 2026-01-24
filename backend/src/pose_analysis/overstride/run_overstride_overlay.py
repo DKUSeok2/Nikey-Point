@@ -47,6 +47,8 @@ def main():
 
     video_paths = sorted(glob.glob(os.path.join(video_dir, args.pattern)))
     summaries: List[dict] = []
+    all_tables: list[pd.DataFrame] = []
+
 
     for vp in video_paths:
         base = os.path.splitext(os.path.basename(vp))[0]
@@ -81,7 +83,7 @@ def main():
                 df_kp, eps=cfg.eps, k_tol=cfg.k_tol, cooldown=cfg.cooldown, return_debug=False
             )
 
-            _ = build_contact_overstride_table(
+            table = build_contact_overstride_table(
                 df_kp,
                 video_name=os.path.basename(vp),
                 fps=float(fps),
@@ -92,6 +94,7 @@ def main():
                 direction="right",
                 csv_out_path=csv_outp,
             )
+            all_tables.append(table)
 
             res["csv"] = csv_outp
 
@@ -113,6 +116,21 @@ def main():
     summary_path = os.path.join(out_dir, "overlay_make_summary.csv")
     df.to_csv(summary_path, index=False)
     print(f"[SAVED] {summary_path}")
+
+    # ---- per-runner stats (mean/std) ----
+    if len(all_tables) > 0:
+        all_tbl = pd.concat(all_tables, ignore_index=True)
+        if "overstride_dx" in all_tbl.columns and len(all_tbl) > 0:
+            stats = (
+                all_tbl.groupby("video")["overstride_dx"]
+                .agg(n="count", mean="mean", std="std")
+                .reset_index()
+            )
+
+            stats_path = os.path.join(out_dir, "overstride_stats_by_video.csv")
+            stats.to_csv(stats_path, index=False)
+            print(f"[SAVED] {stats_path}")
+
 
 
 if __name__ == "__main__":
