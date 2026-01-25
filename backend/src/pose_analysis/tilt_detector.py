@@ -268,7 +268,7 @@ def run_tilt_analysis_from_keypoints_csv(
             "err_ratio": float(np.mean(err_frame)) if len(err_frame) else 0.0,
             "info": asdict(info),                # sigma, delta_allow 등
         },
-        # 필요하면 생성형 AI에 “상세 타임라인”도 줄 수 있음(무거우면 끄면 됨)
+
         "timeline": {
             "frame": tilt_table["frame"].to_list(),
             "tilt_deg": tilt_table["tilt_deg"].to_list(),
