@@ -1,54 +1,71 @@
 import numpy as np
 import pandas as pd
 
-class RunningPoseAnalyzer:
-    def __init__(self, window_size=15):
+class VerticalOscillationAnalyzer:
+    def __init__(self, window_size=15, trend_window=101):
         self.window_size = window_size
-        # MediaPipe Landmark Indices
-        self.LS, self.RS, self.LH, self.RH = 11, 12, 23, 24
+        self.trend_window = trend_window
+        self.LS, self.RS = 11, 12
+        self.LH, self.RH = 23, 24
 
-    def _line_intersection(self, p1, p2, p3, p4):
-        """두 직선의 교차점을 찾아 무게중심(CoM) 추정"""
-        x1, y1 = p1; x2, y2 = p2; x3, y3 = p3; x4, y4 = p4
-        den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-        if abs(den) < 1e-9: return None
-        px = ((x1*y2 - y1*x2)*(x3-x4) - (x1-x2)*(x3*y4 - y3*x4)) / den
-        py = ((x1*y2 - y1*x2)*(y3-y4) - (y1-y2)*(x3*y4 - y3*x4)) / den
-        return np.array([px, py])
-
-    def calculate_com(self, row):
-        """한 프레임의 데이터에서 CoM(y) 좌표 추출"""
+    def calculate_com(self, row, height=None): # height 파라미터 추가
         try:
-            p_ls = (row['x_11'], row['y_11'])
-            p_rs = (row['x_12'], row['y_12'])
-            p_lh = (row['x_23'], row['y_23'])
-            p_rh = (row['x_24'], row['y_24'])
-            
-            # 대각선 교차점 계산 (어깨-골반)
-            inter = self._line_intersection(p_ls, p_rh, p_rs, p_lh)
-            if inter is None: # 교차점 실패 시 중점의 중점 사용
-                return (p_ls[1] + p_rs[1] + p_lh[1] + p_rh[1]) / 4
-            return inter[1] # y좌표만 반환
+            x1, y1 = row[f'x_{self.LS}'], row[f'y_{self.LS}']
+            x2, y2 = row[f'x_{self.RH}'], row[f'y_{self.RH}']
+            x3, y3 = row[f'x_{self.RS}'], row[f'y_{self.RS}']
+            x4, y4 = row[f'x_{self.LH}'], row[f'y_{self.LH}']
+
+            den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+
+            if abs(den) < 1e-9:
+                return (y1 + y2 + y3 + y4) / 4
+
+            py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den
+
+            # [핵심 수정] 0~1 사이가 아니라 0~영상 높이(height) 사이인지 확인(픽셀로 변환 시)
+            # height 정보가 없다면 최소한 0보다 큰지만 확인하도록 유연하게 대처
+            upper_limit = height if height else 5000 # 넉넉한 픽셀값
+            if not (0 <= py <= upper_limit):
+                return (y1 + y2 + y3 + y4) / 4
+
+            return py
         except:
             return np.nan
 
-    def analyze_vertical_oscillation(self, df):
-        """상하 움직임의 평균과 표준편차를 계산하여 반환"""
-        # 1. CoM y값 추출
-        com_y = df.apply(self.calculate_com, axis=1)
-        
-        # 2. 노이즈 제거 (Smoothing)
-        com_y_smooth = com_y.rolling(window=self.window_size, center=True).mean().dropna()
-        
-        # 3. 상하 움직임 폭 계산 (Sliding Window Range)
-        # 런닝 한 사이클(약 30프레임) 내의 최대-최소 차이
-        movement_range = com_y_smooth.rolling(window=30).apply(lambda x: x.max() - x.min()).dropna()
-        
-        # 4. 최종 지표 산출
-        user_mean = float(movement_range.mean())
-        user_std = float(movement_range.std())
-        
-        return user_mean, user_std
+    def analyze(self, df, height=None):
+        # 1. 원본 CoM 추출 (row별로 height 전달)
+        df['com_y_raw'] = df.apply(lambda row: self.calculate_com(row, height), axis=1)
+
+        # 2. Smoothing
+        df['com_y_smooth'] = df['com_y_raw'].rolling(
+            window=self.window_size, center=True, min_periods=1
+        ).mean()
+
+        # 3. Detrending
+        df['trend'] = df['com_y_smooth'].rolling(
+            window=self.trend_window, center=True, min_periods=1
+        ).mean()
+        df['pure_oscillation'] = df['com_y_smooth'] - df['trend']
+
+        # 4. Vertical Range (픽셀 단위로 나옴)
+        df['vertical_range'] = df['pure_oscillation'].rolling(window=30, min_periods=1).apply(
+            lambda x: x.max() - x.min()
+        )
+
+        # 5. 통계값 계산
+        mean_val = df['vertical_range'].mean()
+        std_val = df['vertical_range'].std()
+
+        # [추가 지표] 해상도에 상관없이 비교하고 싶다면? (정규화 평균)
+        norm_mean = mean_val / height if height else None
+
+        summary = {
+            'mean_px': mean_val,   # 픽셀 단위 평균 진폭
+            'std_px': std_val,     # 픽셀 단위 표준편차
+            'mean_norm': norm_mean # 해상도 대비 비율 (0~1)
+        }
+
+        return df, summary
 
 # 사용 예시:
 # analyzer = RunningPoseAnalyzer()
