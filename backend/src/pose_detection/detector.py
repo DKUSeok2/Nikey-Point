@@ -1,6 +1,6 @@
 """MediaPipe Pose detector wrapper."""
 import cv2
-import mediapipe as mp
+from mediapipe import solutions as mp_solutions
 from typing import Iterator
 import numpy as np
 
@@ -25,7 +25,7 @@ class MediaPipeDetector:
     """Wrapper for MediaPipe Pose detection."""
     
     def __init__(self):
-        self.mp_pose = mp.solutions.pose
+        self.mp_pose = mp_solutions.pose
         self.pose = self.mp_pose.Pose(
             static_image_mode=False,
             model_complexity=pose_settings.model_complexity,
@@ -139,6 +139,9 @@ class MediaPipeDetector:
                 if rotation != 0:
                     frame = self._rotate_frame(frame, rotation)
                 
+                # Get frame dimensions (after rotation)
+                frame_height, frame_width = frame.shape[:2]
+                
                 # Convert BGR to RGB
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
@@ -161,6 +164,8 @@ class MediaPipeDetector:
                         "timestamp": frame_number / fps if fps > 0 else 0,
                         "landmarks": landmarks,
                         "confidence": avg_confidence,
+                        "frame_width": frame_width,
+                        "frame_height": frame_height,
                     }
                 
                 frame_number += 1

@@ -28,14 +28,14 @@ async def upload_video(
     service = VideoService(db)
     video = await service.upload_video(user_id, file)
     
-    # Queue keypoint extraction task
-    from ..workers.tasks import extract_keypoints_task
-    extract_keypoints_task.delay(video.id)
+    # Queue video analysis task
+    from ..workers.tasks import analyze_video_task
+    analyze_video_task.delay(video.id)
     
     return VideoUploadResponse(
         video_id=video.id,
         status=video.status,
-        message="Video uploaded successfully. Processing started.",
+        message="Video uploaded successfully. Analysis started.",
     )
 
 

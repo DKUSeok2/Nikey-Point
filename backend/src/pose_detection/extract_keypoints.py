@@ -6,8 +6,8 @@ from typing import Any, Optional, Tuple
 import numpy as np
 from fastapi import HTTPException, status
 
-# ⚠️ 프로젝트 기준 MediaPipe detector 경로
-from backend.src.pose_detection.detector import MediaPipeDetector
+# MediaPipe detector import
+from .detector import MediaPipeDetector
 
 
 DEFAULT_VIDEOS_DIR = Path("storage/videos")
@@ -56,7 +56,27 @@ def _landmarks_to_numpy(
     w = float(frame_width)
     h = float(frame_height)
 
-    # Case 1) list[dict]
+    # Case 1) dict[str, dict] - from detector
+    if isinstance(landmarks, dict) and landmarks:
+        # Convert dict to list in order
+        landmark_list = []
+        for name, lm in landmarks.items():
+            landmark_list.append(lm)
+        
+        arr = np.full((len(landmark_list), 4), np.nan, dtype=np.float32)
+        for i, lm in enumerate(landmark_list):
+            x = lm.get("x")
+            y = lm.get("y")
+            z = lm.get("z")
+            v = lm.get("visibility", lm.get("v"))
+
+            arr[i, 0] = np.nan if x is None else float(x) * w
+            arr[i, 1] = np.nan if y is None else float(y) * h
+            arr[i, 2] = np.nan if z is None else float(z)
+            arr[i, 3] = np.nan if v is None else float(v)
+        return arr
+
+    # Case 2) list[dict]
     if isinstance(landmarks, list) and landmarks and isinstance(landmarks[0], dict):
         arr = np.full((len(landmarks), 4), np.nan, dtype=np.float32)
         for i, lm in enumerate(landmarks):
