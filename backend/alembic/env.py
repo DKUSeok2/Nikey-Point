@@ -12,13 +12,12 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from core.database import Base
-from core.config import settings
+from src.core.database import Base
+from src.core.config import settings
 
 # Import all models to ensure they're registered with Base
-from user.model import User
-from video.model import Video
-from pose_detection.model import Keypoint
+from src.user.model import User
+from src.analysis.model import UserData
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

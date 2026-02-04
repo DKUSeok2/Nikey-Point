@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
-from ..core.database import Base
+from core.database import Base
 
 
 class Video(Base):

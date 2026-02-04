@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'config/theme_config.dart';
 import 'providers/user_provider.dart';
 import 'providers/video_provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/guide_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'NikePoint',
         theme: ThemeConfig.lightTheme,
-        home: const HomeScreen(),
+        home: const GuideScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

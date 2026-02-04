@@ -27,11 +27,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting NikePoint API...")
     
     # Create database tables
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created/verified")
-    except Exception as e:
-        logger.error(f"Failed to create database tables: {e}")
+    # NOTE: Alembic을 사용하여 마이그레이션 관리
+    # try:
+    #     Base.metadata.create_all(bind=engine)
+    #     logger.info("Database tables created/verified")
+    # except Exception as e:
+    #     logger.error(f"Failed to create database tables: {e}")
     
     yield
     

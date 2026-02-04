@@ -1,426 +1,318 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
-import 'dart:async';
-import '../providers/video_provider.dart';
-import '../models/keypoint_model.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-/// Result screen with video player and analysis details
-class ResultScreen extends StatefulWidget {
+/// Analysis result screen
+class ResultScreen extends StatelessWidget {
   const ResultScreen({super.key});
 
   @override
-  State<ResultScreen> createState() => _ResultScreenState();
-}
-
-class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderStateMixin {
-  VideoPlayerController? _controller;
-  int _currentFrameIndex = 0;
-  Timer? _frameUpdateTimer;
-  bool _isInitialized = false;
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    final videoProvider = context.read<VideoProvider>();
-    
-    if (videoProvider.videoFile == null) {
-      setState(() {
-        _isInitialized = false;
-      });
-      return;
-    }
-
-    _controller = VideoPlayerController.file(videoProvider.videoFile!);
-    
-    try {
-      await _controller!.initialize();
-      setState(() {
-        _isInitialized = true;
-      });
-      
-      _startFrameUpdateTimer();
-      _controller!.play();
-      _controller!.setLooping(true);
-    } catch (e) {
-      debugPrint('Error initializing video: $e');
-    }
-  }
-
-  void _startFrameUpdateTimer() {
-    _frameUpdateTimer = Timer.periodic(const Duration(milliseconds: 33), (_) {
-      if (_controller != null && _controller!.value.isPlaying) {
-        final videoProvider = context.read<VideoProvider>();
-        if (videoProvider.keypoints == null) return;
-
-        final position = _controller!.value.position;
-        final duration = _controller!.value.duration;
-        
-        if (duration.inMilliseconds > 0) {
-          final progress = position.inMilliseconds / duration.inMilliseconds;
-          final frameCount = videoProvider.keypoints!.keypoints.length;
-          final newFrameIndex = (progress * frameCount).floor().clamp(0, frameCount - 1);
-          
-          if (newFrameIndex != _currentFrameIndex) {
-            setState(() {
-              _currentFrameIndex = newFrameIndex;
-            });
-          }
-        }
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _frameUpdateTimer?.cancel();
-    _controller?.dispose();
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('분석 결과'),
-        leading: IconButton(
-          icon: const Icon(Icons.home),
-          onPressed: () {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          },
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.video_library), text: '영상'),
-            Tab(icon: Icon(Icons.analytics), text: '분석'),
-          ],
-        ),
-      ),
-      body: Consumer<VideoProvider>(
-        builder: (context, videoProvider, child) {
-          if (videoProvider.keypoints == null) {
-            return const Center(
-              child: Text('키포인트 데이터가 없습니다'),
-            );
-          }
-
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildVideoTab(videoProvider),
-              _buildAnalysisTab(videoProvider),
-            ],
-          );
-        },
+    // Set status bar style
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
       ),
     );
-  }
 
-  Widget _buildVideoTab(VideoProvider videoProvider) {
-    if (!_isInitialized || _controller == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Figma design: 390x844
+    final figmaHeight = 844.0;
+    final figmaWidth = 390.0;
+    
+    // Scale factors
+    final scaleY = screenHeight / figmaHeight;
+    final scaleX = screenWidth / figmaWidth;
 
-    final keypoints = videoProvider.keypoints!;
-    final currentFrame = keypoints.keypoints[_currentFrameIndex];
-
-    return SafeArea(
-      child: Column(
-        children: [
-          // Video player with keypoint overlay
-          Expanded(
-            child: Container(
-              color: Colors.black,
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: _controller!.value.aspectRatio,
-                  child: Stack(
-                    fit: StackFit.expand,
+    return Scaffold(
+      backgroundColor: const Color(0xFF1C1C1E), // systemGray6
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Video preview section
+            Container(
+              height: 272 * scaleY,
+              margin: EdgeInsets.only(top: 59 * scaleY),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.4),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/running_result.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Gradient overlay
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.56295, 1.0],
+                          colors: [
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Time stamp
+                  Positioned(
+                    left: 10 * scaleX,
+                    top: 10 * scaleY,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 10 * scaleX,
+                        vertical: 6 * scaleY,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF18191B).withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Text(
+                        '0:15',
+                        style: TextStyle(
+                          fontSize: 12 * scaleY,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  // Center text
+                  Center(
+                    child: Text(
+                      '영상에서 키포인트',
+                      style: TextStyle(
+                        fontSize: 24 * scaleY,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        height: 21 / 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Results section
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20 * scaleX),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 47 * scaleY),
+                  
+                  // Overstride section
+                  Row(
                     children: [
-                      VideoPlayer(_controller!),
-                      CustomPaint(
-                        painter: KeypointOverlayPainter(
-                          frame: currentFrame,
-                          videoSize: _controller!.value.size,
+                      Text(
+                        '오버스트라이드',
+                        style: TextStyle(
+                          fontSize: 16 * scaleY,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFFF3F4F5).withOpacity(0.7),
+                        ),
+                      ),
+                      SizedBox(width: 8 * scaleX),
+                      Text(
+                        '정상',
+                        style: TextStyle(
+                          fontSize: 16 * scaleY,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF8FEDFA),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-          ),
-          
-          // Controls
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Frame ${_currentFrameIndex + 1} / ${keypoints.keypoints.length}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                  
+                  SizedBox(height: 22 * scaleY),
+                  
+                  // Progress bar with characters
+                  SizedBox(
+                    height: 60 * scaleY,
+                    child: Stack(
+                      children: [
+                        _buildProgressBar(scaleX, scaleY, 78),
+                        
+                        // Pink character (left)
+                        Positioned(
+                          left: 100 * scaleX,
+                          bottom: 0,
+                          child: SvgPicture.asset(
+                            'assets/images/character_pink.svg',
+                            width: 36 * scaleX,
+                            height: 40.5 * scaleY,
+                          ),
+                        ),
+                        
+                        // Cyan character (right)
+                        Positioned(
+                          left: 245 * scaleX,
+                          bottom: 0,
+                          child: SvgPicture.asset(
+                            'assets/images/character_cyan.svg',
+                            width: 36 * scaleX,
+                            height: 40.5 * scaleY,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Confidence: ${(currentFrame.confidence * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                VideoProgressIndicator(
-                  _controller!,
-                  allowScrubbing: true,
-                  colors: VideoProgressColors(
-                    playedColor: Theme.of(context).primaryColor,
-                    backgroundColor: Colors.grey[300]!,
-                    bufferedColor: Colors.grey[200]!,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.skip_previous),
-                      onPressed: () => _controller!.seekTo(Duration.zero),
+                  
+                  SizedBox(height: 12 * scaleY),
+                  
+                  // Description
+                  Text(
+                    '프로 기준 정상 범위(0.00~0.18)보다 0.05 높아서 비정상에 가까워요. ',
+                    style: TextStyle(
+                      fontSize: 18 * scaleY,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFFF3F4F5).withOpacity(0.7),
+                      height: 21 / 18,
                     ),
-                    IconButton(
-                      icon: Icon(_controller!.value.isPlaying ? Icons.pause : Icons.play_arrow),
-                      iconSize: 48,
-                      onPressed: () {
-                        setState(() {
-                          _controller!.value.isPlaying ? _controller!.pause() : _controller!.play();
-                        });
-                      },
+                  ),
+                  
+                  SizedBox(height: 12 * scaleY),
+                  
+                  // Detailed description
+                  Text(
+                    "이 상태가 계속되면 착지 순간 '브레이크'가 걸리듯 충격이 쌓여 무릎 앞쪽이나 정강이 쪽에 부담이 커질 수 있어요. 우선 발을 앞이 아니라 몸 아래로 디딘다는 느낌을 가져가고, 보폭을 5~10%만 줄여보세요. 그다음 케이던스를 5~8% 정도만 살짝 올리면 앞쪽으로 길게 뻗는 착지가 줄어드는 데 도움이 될 수 있어요. 연습으로는 제자리 뛰기 20~30초를 2~3세트만 해도 '아래로 디디기' 감각을 잡는 데 좋아요.",
+                    style: TextStyle(
+                      fontSize: 14 * scaleY,
+                      fontWeight: FontWeight.w400,
+                      color: const Color(0xFFF3F4F5).withOpacity(0.7),
+                      height: 1.4,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.skip_next),
-                      onPressed: () => _controller!.seekTo(_controller!.value.duration),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalysisTab(VideoProvider videoProvider) {
-    final keypoints = videoProvider.keypoints!;
-    final avgConfidence = keypoints.keypoints
-        .map((k) => k.confidence)
-        .reduce((a, b) => a + b) / keypoints.keypoints.length;
-
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Summary card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                  ),
+                  
+                  SizedBox(height: 32 * scaleY),
+                  
+                  // COM Vertical section
                   Row(
                     children: [
-                      Icon(Icons.analytics, color: Theme.of(context).primaryColor),
-                      const SizedBox(width: 8),
-                      const Text('분석 완료', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(
+                        '무게 중심 상하 움직임',
+                        style: TextStyle(
+                          fontSize: 16 * scaleY,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFFF3F4F5).withOpacity(0.7),
+                        ),
+                      ),
+                      SizedBox(width: 8 * scaleX),
+                      Text(
+                        '비정상',
+                        style: TextStyle(
+                          fontSize: 16 * scaleY,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF8FEDFA),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow('총 프레임', '${keypoints.frameCount}개'),
-                  _buildInfoRow('평균 신뢰도', '${(avgConfidence * 100).toStringAsFixed(1)}%'),
-                  _buildInfoRow('감지된 포인트', '33개 신체 랜드마크'),
+                  
+                  SizedBox(height: 40 * scaleY),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Analysis placeholder (Phase 2)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.directions_run, color: Theme.of(context).primaryColor),
-                      const SizedBox(width: 8),
-                      const Text('러닝 분석', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '다음 분석 항목이 곧 제공됩니다:',
-                    style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAnalysisItem(Icons.straighten, '평균 보폭', '계산 예정', Colors.blue),
-                  _buildAnalysisItem(Icons.trending_down, '착지 각도', '계산 예정', Colors.green),
-                  _buildAnalysisItem(Icons.speed, '케이던스 (분당 스텝)', '계산 예정', Colors.orange),
-                  _buildAnalysisItem(Icons.swap_vert, '수직 진폭', '계산 예정', Colors.purple),
-                  _buildAnalysisItem(Icons.timer, '지면 접촉 시간', '계산 예정', Colors.red),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Keypoint details
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('키포인트 상세', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  const Text('MediaPipe Pose 모델이 감지한 33개의 신체 랜드마크:'),
-                  const SizedBox(height: 12),
-                  const Text('• 얼굴: 코, 눈, 귀\n'
-                      '• 상체: 어깨, 팔꿈치, 손목, 손\n'
-                      '• 하체: 엉덩이, 무릎, 발목, 발'),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          
-          // Actions
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).popUntil((route) => route.isFirst);
-            },
-            icon: const Icon(Icons.home),
-            label: const Text('처음으로'),
-            style: ElevatedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 48),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey[600])),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnalysisItem(IconData icon, String label, String value, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-                Text(value, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              ],
+  Widget _buildProgressBar(double scaleX, double scaleY, int value) {
+    return Stack(
+      children: [
+        // Indicator line on top
+        Positioned(
+          top: -5 * scaleY,
+          left: 0,
+          right: 0,
+          child: Container(
+            height: 10 * scaleY,
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: Colors.white.withOpacity(0.4),
+                  width: 10 * scaleY,
+                ),
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+        
+        // Background bar
+        Container(
+          width: 320 * scaleX,
+          height: 22 * scaleY,
+          decoration: BoxDecoration(
+            color: const Color(0xFF3A3A3C), // systemGray4
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        
+        // Value indicators
+        Positioned(
+          left: 0,
+          bottom: -10 * scaleY,
+          child: Text(
+            '0',
+            style: TextStyle(
+              fontSize: 10 * scaleY,
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.54),
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
+        
+        Positioned(
+          right: 0,
+          bottom: -10 * scaleY,
+          child: Text(
+            '100',
+            style: TextStyle(
+              fontSize: 10 * scaleY,
+              fontWeight: FontWeight.w300,
+              color: Colors.white.withOpacity(0.54),
+              letterSpacing: 0.4,
+            ),
+          ),
+        ),
+        
+        // Current value indicator
+        Positioned(
+          left: (value / 100) * 320 * scaleX - 14 * scaleX,
+          top: 32 * scaleY,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: 8 * scaleX,
+              vertical: 2 * scaleY,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              value.toString(),
+              style: TextStyle(
+                fontSize: 10 * scaleY,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
-}
-
-/// Custom painter for keypoint overlay
-class KeypointOverlayPainter extends CustomPainter {
-  final KeypointFrame frame;
-  final Size videoSize;
-
-  KeypointOverlayPainter({required this.frame, required this.videoSize});
-
-  static const List<List<String>> connections = [
-    ['left_shoulder', 'right_shoulder'],
-    ['left_shoulder', 'left_elbow'],
-    ['left_elbow', 'left_wrist'],
-    ['right_shoulder', 'right_elbow'],
-    ['right_elbow', 'right_wrist'],
-    ['left_shoulder', 'left_hip'],
-    ['right_shoulder', 'right_hip'],
-    ['left_hip', 'right_hip'],
-    ['left_hip', 'left_knee'],
-    ['left_knee', 'left_ankle'],
-    ['right_hip', 'right_knee'],
-    ['right_knee', 'right_ankle'],
-    ['left_ankle', 'left_heel'],
-    ['left_heel', 'left_foot_index'],
-    ['left_ankle', 'left_foot_index'],
-    ['right_ankle', 'right_heel'],
-    ['right_heel', 'right_foot_index'],
-    ['right_ankle', 'right_foot_index'],
-  ];
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.blue.withOpacity(0.8)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final pointPaint = Paint()
-      ..color = Colors.red.withOpacity(0.8)
-      ..style = PaintingStyle.fill;
-
-    final scaleX = size.width / videoSize.width;
-    final scaleY = size.height / videoSize.height;
-
-    for (final connection in connections) {
-      final start = frame.landmarks[connection[0]];
-      final end = frame.landmarks[connection[1]];
-      
-      if (start != null && end != null && start.visibility > 0.5 && end.visibility > 0.5) {
-        canvas.drawLine(
-          Offset(start.x * videoSize.width * scaleX, start.y * videoSize.height * scaleY),
-          Offset(end.x * videoSize.width * scaleX, end.y * videoSize.height * scaleY),
-          paint,
-        );
-      }
-    }
-
-    frame.landmarks.forEach((name, point) {
-      if (point.visibility > 0.5) {
-        canvas.drawCircle(
-          Offset(point.x * videoSize.width * scaleX, point.y * videoSize.height * scaleY),
-          5,
-          pointPaint,
-        );
-      }
-    });
-  }
-
-  @override
-  bool shouldRepaint(KeypointOverlayPainter oldDelegate) => oldDelegate.frame != frame;
 }
