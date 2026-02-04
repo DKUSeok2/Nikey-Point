@@ -4,7 +4,7 @@ from sqlalchemy import Column, String, Integer, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
-from ..core.database import Base
+from core.database import Base
 
 
 class Keypoint(Base):
