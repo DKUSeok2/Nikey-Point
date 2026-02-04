@@ -11,6 +11,7 @@ from .core.database import engine, Base
 from .user.router import router as user_router
 from .video.router import router as video_router
 from .pose_detection.router import router as pose_router
+from .analysis.router import router as analysis_router
 
 # Configure logging
 logging.basicConfig(
@@ -85,6 +86,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(user_router)
 app.include_router(video_router)
 app.include_router(pose_router)
+app.include_router(analysis_router)
 
 
 # Health check endpoints
@@ -119,6 +121,7 @@ def api_info():
             "auth": "/api/auth",
             "video": "/api/video",
             "pose_detection": "/api/pose",
+            "analysis": "/api/analysis",
         },
         "docs": {
             "swagger": "/docs",

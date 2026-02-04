@@ -125,6 +125,110 @@ def cleanup_old_videos_task(days: int = 30):
 
 
 @celery_app.task
+def analyze_video_task(video_id: str):
+    """
+    영상 분석 Task - Keypoint 추출 + 3가지 지표 계산
+    
+    Args:
+        video_id: Video ID to analyze
+        
+    Returns:
+        Dictionary with analysis results
+    """
+    db: Session = SessionLocal()
+    
+    try:
+        logger.info(f"분석 시작: video_id={video_id}")
+        
+        # 1. Video 조회
+        from ..video.model import Video
+        video = db.query(Video).filter(Video.id == video_id).first()
+        
+        if not video:
+            logger.error(f"Video not found: {video_id}")
+            return {"status": "failed", "error": "Video not found"}
+        
+        video.status = "processing"
+        db.commit()
+        
+        # 2. Keypoint 추출 (메모리에서만)
+        from ..pose_detection.extract_keypoints import PoseDetectionService
+        
+        pose_service = PoseDetectionService()
+        frames, xyzv = pose_service.extract_keypoints_numpy(video_path=video.file_path)
+        
+        logger.info(f"Keypoint 추출 완료: {len(frames)} frames")
+        
+        # 3. Pixel heights 계산
+        from ..pose_detection.extract_height import get_pixel_heights
+        
+        pixel_heights = get_pixel_heights(video.file_path)
+        logger.info(f"Pixel heights 계산 완료")
+        
+        # 4. 3가지 지표 계산
+        from ..analysis.service import AnalysisService
+        
+        service = AnalysisService()
+        metrics = service.calculate_metrics(
+            frames=frames,
+            xyzv=xyzv,
+            pixel_heights=pixel_heights,
+            fps=30.0  # TODO: video에서 fps 가져오기
+        )
+        
+        logger.info(f"지표 계산 완료: {metrics}")
+        
+        # 5. 결과 저장
+        from ..analysis.model import UserData
+        from datetime import datetime
+        
+        result = UserData(
+            user_id=video.user_id,
+            original_video_path=video.file_path,
+            overstride_avg=metrics['overstride'],
+            tilt_avg=metrics['tilt'],
+            com_vertical_avg=metrics['vertical'],
+            overstride_overlay_path=None,
+            tilt_overlay_path=None,
+            com_vertical_overlay_path=None,
+            llm_feedback=None,
+            completed_at=datetime.utcnow()
+        )
+        
+        db.add(result)
+        video.status = "completed"
+        db.commit()
+        
+        logger.info(f"✅ 분석 완료: user_data_id={result.id}")
+        
+        return {
+            "status": "success",
+            "user_data_id": result.id,
+            "metrics": metrics
+        }
+        
+    except Exception as exc:
+        logger.error(f"❌ 분석 실패: {exc}", exc_info=True)
+        db.rollback()
+        
+        try:
+            video.status = "failed"
+            video.error_message = str(exc)
+            db.commit()
+        except Exception:
+            pass
+        
+        return {
+            "status": "failed",
+            "video_id": video_id,
+            "error": str(exc)
+        }
+        
+    finally:
+        db.close()
+
+
+@celery_app.task
 def health_check_task():
     """Health check task for Celery worker."""
     logger.info("Celery worker health check")
