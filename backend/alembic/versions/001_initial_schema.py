@@ -1,13 +1,12 @@
-"""Initial schema
+"""Initial schema - Simplified structure
 
 Revision ID: 001
 Revises: 
-Create Date: 2026-01-16
+Create Date: 2026-02-04
 
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 
 
 # revision identifiers, used by Alembic.
@@ -22,58 +21,52 @@ def upgrade() -> None:
     op.create_table(
         'users',
         sa.Column('id', sa.String(), nullable=False),
-        sa.Column('email', sa.String(), nullable=False),
-        sa.Column('password_hash', sa.String(), nullable=False),
+        sa.Column('user_name', sa.String(), nullable=False),
         sa.Column('height', sa.Float(), nullable=False),
-        sa.Column('weight', sa.Float(), nullable=True),
-        sa.Column('age', sa.Integer(), nullable=True),
-        sa.Column('created_at', sa.DateTime(), nullable=True),
-        sa.Column('last_login', sa.DateTime(), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('email')
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+        sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_users_email', 'users', ['email'])
+    op.create_index('ix_users_user_name', 'users', ['user_name'])
     
-    # Create videos table
+    # Create user_datas table
     op.create_table(
-        'videos',
+        'user_datas',
         sa.Column('id', sa.String(), nullable=False),
         sa.Column('user_id', sa.String(), nullable=False),
-        sa.Column('file_path', sa.String(), nullable=False),
-        sa.Column('file_size', sa.Integer(), nullable=True),
-        sa.Column('duration', sa.Float(), nullable=True),
-        sa.Column('status', sa.String(), nullable=False),
-        sa.Column('error_message', sa.String(), nullable=True),
-        sa.Column('uploaded_at', sa.DateTime(), nullable=False),
-        sa.Column('processed_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+        
+        # 원본 영상
+        sa.Column('original_video_path', sa.String(), nullable=False),
+        
+        # 오버스트라이드 분석
+        sa.Column('overstride_overlay_path', sa.String(), nullable=True),
+        sa.Column('overstride_avg', sa.Float(), nullable=True),
+        
+        # 무게중심 상하움직임 분석
+        sa.Column('com_vertical_overlay_path', sa.String(), nullable=True),
+        sa.Column('com_vertical_avg', sa.Float(), nullable=True),
+        
+        # 상체 기울기 분석
+        sa.Column('tilt_overlay_path', sa.String(), nullable=True),
+        sa.Column('tilt_avg', sa.Float(), nullable=True),
+        
+        # LLM 피드백
+        sa.Column('llm_feedback', sa.Text(), nullable=True),
+        
+        # 타임스탬프
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('NOW()'), nullable=False),
+        sa.Column('completed_at', sa.DateTime(), nullable=True),
+        
+        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
-    op.create_index('ix_videos_user_id', 'videos', ['user_id'])
-    
-    # Create keypoints table
-    op.create_table(
-        'keypoints',
-        sa.Column('id', sa.String(), nullable=False),
-        sa.Column('video_id', sa.String(), nullable=False),
-        sa.Column('frame_number', sa.Integer(), nullable=False),
-        sa.Column('timestamp', sa.Float(), nullable=False),
-        sa.Column('landmarks', JSONB, nullable=False),
-        sa.Column('confidence', sa.Float(), nullable=True),
-        sa.ForeignKeyConstraint(['video_id'], ['videos.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index('ix_keypoints_video_id', 'keypoints', ['video_id'])
-    op.create_index('ix_keypoints_frame_number', 'keypoints', ['frame_number'])
+    op.create_index('ix_user_datas_user_id', 'user_datas', ['user_id'])
+    op.create_index('ix_user_datas_created_at', 'user_datas', ['created_at'])
 
 
 def downgrade() -> None:
-    op.drop_index('ix_keypoints_frame_number', table_name='keypoints')
-    op.drop_index('ix_keypoints_video_id', table_name='keypoints')
-    op.drop_table('keypoints')
+    op.drop_index('ix_user_datas_created_at', table_name='user_datas')
+    op.drop_index('ix_user_datas_user_id', table_name='user_datas')
+    op.drop_table('user_datas')
     
-    op.drop_index('ix_videos_user_id', table_name='videos')
-    op.drop_table('videos')
-    
-    op.drop_index('ix_users_email', table_name='users')
+    op.drop_index('ix_users_user_name', table_name='users')
     op.drop_table('users')
