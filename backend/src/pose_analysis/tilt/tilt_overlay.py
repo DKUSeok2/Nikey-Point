@@ -171,6 +171,9 @@ def make_overlay_video_from_numpy(
     fps = cap.get(cv2.CAP_PROP_FPS)
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    
+    # 항상 90도 회전 → width/height 교환
+    w, h = h, w
 
     out_path = str(out_path)
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
@@ -192,6 +195,9 @@ def make_overlay_video_from_numpy(
         ret, frame = cap.read()
         if not ret or t >= len(xyzv):
             break
+        
+        # 항상 90도 시계방향 회전 (iPhone portrait)
+        frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
 
         pts = xyzv[t]
 

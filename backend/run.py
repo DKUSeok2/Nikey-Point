@@ -1,11 +1,13 @@
-"""테스트 실행 스크립트 - 3가지 지표 출력"""
+"""테스트 실행 스크립트 - 3가지 지표 + LLM 피드백"""
 from pathlib import Path
 from src.pose_detection.extract_keypoints import PoseDetectionService
 from src.pose_detection.extract_height import get_pixel_heights
 from src.analysis.service import AnalysisService
+from src.feedback.service import FeedbackService
 
 # 테스트할 영상 경로
 VIDEO_PATH = "src/test.mp4"
+USER_HEIGHT = 175.0  # 테스트용 사용자 키 (cm)
 
 if __name__ == "__main__":
     print("=" * 50)
@@ -41,4 +43,20 @@ if __name__ == "__main__":
     print(f"Overstride (과보폭):     {metrics['overstride']:.4f}")
     print(f"Tilt (상체 기울기):      {metrics['tilt']:.2f}°")
     print(f"Vertical (수직 진동):    {metrics['vertical']:.4f}")
+    print("=" * 50)
+    
+    # 4. LLM 피드백 생성
+    print("\n[4/4] LLM 피드백 생성 중...")
+    feedback_service = FeedbackService()
+    feedback = feedback_service.generate_feedback(
+        overstride=metrics['overstride'],
+        tilt=metrics['tilt'],
+        vertical=metrics['vertical'],
+        user_height=USER_HEIGHT
+    )
+    
+    print("\n" + "=" * 50)
+    print("💬 LLM 피드백")
+    print("=" * 50)
+    print(feedback)
     print("=" * 50)

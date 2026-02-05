@@ -37,7 +37,7 @@ class UserData(Base):
     completed_at = Column(DateTime, nullable=True)
     
     # Relationships
-    user = relationship("User", back_populates="user_datas")
+    # user = relationship("User")  # Simplified, no back_populates
     
     def __repr__(self) -> str:
         return f"<UserData(id={self.id}, user_id={self.user_id})>"
