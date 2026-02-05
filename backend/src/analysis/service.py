@@ -51,6 +51,7 @@ class AnalysisService:
             contact_L=contact_L,
             contact_R=contact_R,
             height_df=height_df,
+            frames=frames,
             point="toe"
         )
         
