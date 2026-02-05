@@ -110,40 +110,40 @@ def compute_overstride_numpy(
     contact_L: np.ndarray,
     contact_R: np.ndarray,
     height_df: pd.DataFrame,
+    frames: np.ndarray,        # ⭐ 추가 (time → frame 변환용)
     point: FootPoint = "toe",
 ) -> tuple[np.ndarray, np.ndarray, float]:
-    """
-    Returns:
-      frames : np.ndarray (N,)
-      values : np.ndarray (N,)   # normalized overstride
-      mean   : float
-    """
 
     # ---------- 1. raw dx ----------
     dxL = compute_overstride_dx(keypoints_df, side="L", point=point)
     dxR = compute_overstride_dx(keypoints_df, side="R", point=point)
 
-    # ---------- 2. height preprocessing ----------
+    # ---------- 2. height preprocessing (frame 기준) ----------
     height_map = (
         height_df[height_df["detected"] == "Yes"]
-        .loc[:, ["frame", "pixel_height"]]
-        .astype({"frame": int, "pixel_height": float})
-        .set_index("frame")
+        .set_index("frame")["pixel_height"]
     )
 
-    frames: list[int] = []
+    # ⭐ frame → time index 매핑
+    T = len(frames)
+    height_by_t = np.full(T, np.nan, dtype=float)
+    for t, f in enumerate(frames):
+        if f in height_map.index:
+            height_by_t[t] = height_map.loc[f]
+
+    out_frames: list[int] = []
     values: list[float] = []
 
     # ---------- 3. collect normalized values ----------
     for t in np.where(contact_L)[0]:
-        if t in height_map.index and dxL[t] >= 0:
-            frames.append(t)
-            values.append(dxL[t] / height_map.loc[t, "pixel_height"])
+        if not np.isnan(height_by_t[t]) and dxL[t] >= 0:
+            out_frames.append(frames[t])   # ⭐ frame 번호로 출력
+            values.append(dxL[t] / height_by_t[t])
 
     for t in np.where(contact_R)[0]:
-        if t in height_map.index and dxR[t] >= 0:
-            frames.append(t)
-            values.append(dxR[t] / height_map.loc[t, "pixel_height"])
+        if not np.isnan(height_by_t[t]) and dxR[t] >= 0:
+            out_frames.append(frames[t])
+            values.append(dxR[t] / height_by_t[t])
 
     # ---------- 4. finalize ----------
     if len(values) == 0:
@@ -153,7 +153,7 @@ def compute_overstride_numpy(
             np.nan,
         )
 
-    frames_np = np.asarray(frames, dtype=np.int32)
+    frames_np = np.asarray(out_frames, dtype=np.int32)
     values_np = np.asarray(values, dtype=np.float32)
 
     return frames_np, values_np, float(values_np.mean())
