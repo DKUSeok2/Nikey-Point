@@ -16,12 +16,5 @@ class User(Base):
     height = Column(Float, nullable=False)  # cm
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     
-    # Relationships
-    user_datas = relationship(
-        "UserData",
-        back_populates="user",
-        cascade="all, delete-orphan"
-    )
-    
     def __repr__(self) -> str:
         return f"<User(id={self.id}, user_name={self.user_name})>"

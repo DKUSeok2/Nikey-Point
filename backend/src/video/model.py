@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 
-from core.database import Base
+from ..core.database import Base
 
 
 class Video(Base):
@@ -32,14 +32,6 @@ class Video(Base):
     # Timestamps
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     processed_at = Column(DateTime, nullable=True)
-    
-    # Relationships
-    user = relationship("User", back_populates="videos")
-    keypoints = relationship(
-        "Keypoint",
-        back_populates="video",
-        cascade="all, delete-orphan",
-    )
     
     def __repr__(self) -> str:
         return f"<Video(id={self.id}, user_id={self.user_id}, status={self.status})>"

@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list[str] = ["*"]  # In production, specify exact origins
     
+    # OpenAI
+    OPENAI_API_KEY: str | None = None  # Optional for LLM feedback
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

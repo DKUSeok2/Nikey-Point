@@ -1,16 +1,17 @@
 """FastAPI main application."""
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 
 from .core.config import settings
 from .core.database import engine, Base
 from .user.router import router as user_router
 from .video.router import router as video_router
-from .pose_detection.router import router as pose_router
 from .analysis.router import router as analysis_router
 
 # Configure logging
@@ -85,8 +86,12 @@ async def general_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(user_router)
 app.include_router(video_router)
-app.include_router(pose_router)
 app.include_router(analysis_router)
+
+# Mount static files for overlays
+overlays_dir = Path("/app/storage/overlays")
+overlays_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/storage/overlays", StaticFiles(directory=str(overlays_dir)), name="overlays")
 
 
 # Health check endpoints
@@ -118,9 +123,8 @@ def api_info():
         "service": "NikePoint API",
         "version": "0.1.0",
         "endpoints": {
-            "auth": "/api/auth",
+            "user": "/api/user",
             "video": "/api/video",
-            "pose_detection": "/api/pose",
             "analysis": "/api/analysis",
         },
         "docs": {

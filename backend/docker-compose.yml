@@ -40,12 +40,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    platform: linux/amd64
     container_name: nikepoint_api
     ports:
       - "8000:8000"
     volumes:
       - ./src:/app/src  # 코드 hot-reload
       - ./storage:/app/storage  # 영상 저장소
+      - ./storage/overlays:/app/storage/overlays  # 오버레이 저장소
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://nikepoint:dev_password@db:5432/nikepoint
       REDIS_URL: redis://redis:6379/0
@@ -67,10 +71,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    platform: linux/amd64
     container_name: nikepoint_worker
     volumes:
       - ./src:/app/src
       - ./storage:/app/storage
+      - ./storage/overlays:/app/storage/overlays
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://nikepoint:dev_password@db:5432/nikepoint
       REDIS_URL: redis://redis:6379/0
