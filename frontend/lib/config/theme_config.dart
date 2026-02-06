@@ -7,6 +7,7 @@ class ThemeConfig {
       primarySwatch: Colors.blue,
       primaryColor: const Color(0xFF2196F3),
       scaffoldBackgroundColor: Colors.white,
+      fontFamily: 'Pretendard',
       
       appBarTheme: const AppBarTheme(
         backgroundColor: Color(0xFF2196F3),

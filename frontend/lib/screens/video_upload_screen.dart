@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'dart:io';
+import '../providers/user_provider.dart';
+import '../widgets/cta_button.dart';
 import 'loading_screen.dart';
 
-/// Video upload selection screen with bottom sheet
+/// Video upload selection screen
 class VideoUploadScreen extends StatefulWidget {
   const VideoUploadScreen({super.key});
 
@@ -15,22 +19,140 @@ class VideoUploadScreen extends StatefulWidget {
 class _VideoUploadScreenState extends State<VideoUploadScreen> {
   final ImagePicker _picker = ImagePicker();
 
+  /// Show video upload bottom sheet
+  void _showVideoUploadSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF2C2C2E),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Title bar with close button
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '영상 업로드하기',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                      letterSpacing: -0.64,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: SvgPicture.asset(
+                        'assets/images/close_icon.svg',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Option: 촬영하기
+            _buildOption(
+              iconPath: 'assets/images/camera_icon.svg',
+              text: '촬영하기',
+              onTap: () {
+                Navigator.pop(context);
+                _openCamera();
+              },
+            ),
+            
+            // Option: 갤러리
+            _buildOption(
+              iconPath: 'assets/images/gallery_icon.svg',
+              text: '갤러리',
+              onTap: () {
+                Navigator.pop(context);
+                _openGallery();
+              },
+            ),
+            
+            // Option: 구글 드라이브
+            _buildOption(
+              iconPath: 'assets/images/drive_icon.svg',
+              text: '구글 드라이브',
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: Implement Google Drive integration
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('구글 드라이브 연동은 준비중입니다')),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOption({
+    required String iconPath,
+    required String text,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+        height: 50,
+        decoration: BoxDecoration(
+          color: const Color(0xFF6C737A).withOpacity(0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: SvgPicture.asset(
+                iconPath,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w400,
+                color: Colors.white,
+                letterSpacing: -0.64,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Open camera to record video
   Future<void> _openCamera() async {
     try {
       final XFile? video = await _picker.pickVideo(
         source: ImageSource.camera,
-        maxDuration: const Duration(seconds: 60), // 최대 60초
+        maxDuration: const Duration(seconds: 60),
       );
       
       if (video != null && mounted) {
-        // Navigate to loading screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LoadingScreen(),
-          ),
-        );
+        _navigateToLoading(File(video.path));
       }
     } catch (e) {
       if (mounted) {
@@ -49,13 +171,7 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
       );
       
       if (video != null && mounted) {
-        // Navigate to loading screen
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const LoadingScreen(),
-          ),
-        );
+        _navigateToLoading(File(video.path));
       }
     } catch (e) {
       if (mounted) {
@@ -64,6 +180,30 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
         );
       }
     }
+  }
+
+  void _navigateToLoading(File videoFile) {
+    final userProvider = context.read<UserProvider>();
+    
+    // Check if user info exists
+    if (userProvider.userId == null || userProvider.userHeight == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사용자 정보를 먼저 입력해주세요')),
+      );
+      return;
+    }
+    
+    // Navigate to loading screen with user info
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LoadingScreen(
+          videoFile: videoFile,
+          userId: userProvider.userId!,
+          height: userProvider.userHeight!,
+        ),
+      ),
+    );
   }
 
   @override
@@ -88,10 +228,10 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
     final scaleX = screenWidth / figmaWidth;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1C1C1E), // systemGray6
+      backgroundColor: const Color(0xFF1C1C1E),
       body: Stack(
         children: [
-          // Title text - Figma: (20, 127)
+          // Title - Figma: (20, 127)
           Positioned(
             left: 20 * scaleX,
             top: 127 * scaleY,
@@ -101,162 +241,57 @@ class _VideoUploadScreenState extends State<VideoUploadScreen> {
                 fontSize: 20 * scaleY,
                 fontWeight: FontWeight.w600,
                 color: Colors.white,
-                height: 1.4,
                 letterSpacing: -0.8,
               ),
             ),
           ),
           
-          // Bottom sheet
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              width: screenWidth,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                border: Border(
-                  top: BorderSide(
-                    color: Color(0xFFF3F4F5),
-                    width: 1,
-                  ),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.25),
-                    blurRadius: 30,
-                    offset: Offset(0, 0),
-                  ),
-                ],
+          // Description - Figma: (20, 165)
+          Positioned(
+            left: 20 * scaleX,
+            top: 165 * scaleY,
+            right: 20 * scaleX,
+            child: Text(
+              '영상을 선택하기 전, 모범 영상을 확인하고 업로드하면\n더 좋은 분석을 받을 수 있어요.',
+              style: TextStyle(
+                fontSize: 14 * scaleY,
+                fontWeight: FontWeight.w400,
+                color: Colors.white.withOpacity(0.6),
+                height: 1.5,
               ),
-              padding: EdgeInsets.only(
-                left: 16 * scaleX,
-                right: 16 * scaleX,
-                top: 25 * scaleY,
-                bottom: 60 * scaleY,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Header with title and close button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '영상 업로드하기',
-                        style: TextStyle(
-                          fontSize: 16 * scaleY,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFF18191B), // Grey/900
-                          letterSpacing: -0.64,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Icon(
-                          Icons.close,
-                          size: 16 * scaleY,
-                          color: const Color(0xFF18191B), // Grey/900
-                        ),
-                      ),
-                    ],
+            ),
+          ),
+          
+          // "영상 선택하기" button
+          Positioned(
+            left: 20 * scaleX,
+            top: 220 * scaleY,
+            width: 200 * scaleX,
+            child: SizedBox(
+              height: 42 * scaleY,
+              child: ElevatedButton(
+                onPressed: _showVideoUploadSheet,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00DCFF),
+                  foregroundColor: const Color(0xFF18191B),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  
-                  SizedBox(height: 30 * scaleY),
-                  
-                  // Options
-                  Column(
-                    children: [
-                      // 촬영하기 (Camera)
-                      _buildOptionButton(
-                        icon: 'assets/images/camera_icon.svg',
-                        label: '촬영하기',
-                        onTap: _openCamera,
-                        scaleX: scaleX,
-                        scaleY: scaleY,
-                        isRotated: true,
-                      ),
-                      
-                      SizedBox(height: 10 * scaleY),
-                      
-                      // 갤러리
-                      _buildOptionButton(
-                        icon: 'assets/images/gallery_icon.svg',
-                        label: '갤러리',
-                        onTap: _openGallery,
-                        scaleX: scaleX,
-                        scaleY: scaleY,
-                      ),
-                      
-                      SizedBox(height: 10 * scaleY),
-                      
-                      // 구글 드라이브
-                      _buildOptionButton(
-                        icon: 'assets/images/gallery_icon.svg',
-                        label: '구글 드라이브',
-                        onTap: () {
-                          // TODO: Open Google Drive
-                        },
-                        scaleX: scaleX,
-                        scaleY: scaleY,
-                      ),
-                    ],
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  alignment: Alignment.centerLeft,
+                ),
+                child: const Text(
+                  '영상 선택하기',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOptionButton({
-    required String icon,
-    required String label,
-    required VoidCallback onTap,
-    required double scaleX,
-    required double scaleY,
-    bool isRotated = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 358 * scaleX,
-        height: 50 * scaleY,
-        padding: EdgeInsets.symmetric(
-          horizontal: 15 * scaleX,
-          vertical: 13 * scaleY,
-        ),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3F4F5), // Grey/100
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Transform.rotate(
-              angle: isRotated ? 3.14159 : 0, // 180 degrees for camera icon
-              child: SvgPicture.asset(
-                icon,
-                width: 20 * scaleX,
-                height: 20 * scaleY,
-              ),
-            ),
-            SizedBox(width: 8 * scaleX),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 16 * scaleY,
-                fontWeight: FontWeight.w400,
-                color: const Color(0xFF18191B), // Grey/900
-                letterSpacing: -0.64,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

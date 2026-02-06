@@ -36,6 +36,7 @@ def upgrade() -> None:
         
         # 원본 영상
         sa.Column('original_video_path', sa.String(), nullable=False),
+        sa.Column('keypoint_video_path', sa.String(), nullable=True),
         
         # 오버스트라이드 분석
         sa.Column('overstride_overlay_path', sa.String(), nullable=True),

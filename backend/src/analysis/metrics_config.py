@@ -16,7 +16,7 @@ METRICS_REFERENCE = {
         'description': '상체가 수직에서 얼마나 기울어져 있는지'
     },
     'vertical': {
-        'normal_range': (0.10, 0.41),  # 키의 3~7%
+        'normal_range': (0.01, 0.08),  # 변경된 범위
         'name': '수직 진동',
         'unit': 'ratio',
         'description': '러닝 중 몸의 상하 움직임 폭'

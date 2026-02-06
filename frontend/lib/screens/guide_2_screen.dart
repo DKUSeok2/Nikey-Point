@@ -1,12 +1,34 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'guide_3_screen.dart';
+import 'personal_info_screen.dart';
 import '../widgets/cta_button.dart';
 
 /// Guide screen 2 - Video length recommendation
-class Guide2Screen extends StatelessWidget {
+class Guide2Screen extends StatefulWidget {
   const Guide2Screen({super.key});
+
+  @override
+  State<Guide2Screen> createState() => _Guide2ScreenState();
+}
+
+class _Guide2ScreenState extends State<Guide2Screen> {
+  bool _isButtonActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 3초 후 버튼 활성화
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _isButtonActive = true;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +81,12 @@ class Guide2Screen extends StatelessWidget {
                   // SKIP button
                   GestureDetector(
                     onTap: () {
-                      // TODO: Navigate to next screen
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PersonalInfoScreen(),
+                        ),
+                      );
                     },
                     child: Text(
                       'SKIP',
@@ -215,14 +242,16 @@ class Guide2Screen extends StatelessWidget {
             right: 20 * scaleX,
             child: CtaButton(
               text: '다음으로',
-              variant: CtaButtonVariant.secondary,
+              variant: _isButtonActive ? CtaButtonVariant.active : CtaButtonVariant.disabled,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const Guide3Screen(),
-                  ),
-                );
+                if (_isButtonActive) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const Guide3Screen(),
+                    ),
+                  );
+                }
               },
             ),
           ),

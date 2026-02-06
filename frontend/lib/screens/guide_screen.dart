@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'guide_2_screen.dart';
 import '../widgets/cta_button.dart';
+import '../widgets/app_drawer.dart';
 
 /// Guide screen with character and start button
 class GuideScreen extends StatelessWidget {
@@ -31,9 +32,9 @@ class GuideScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFF1C1C1E), // systemGray6
+      endDrawer: const AppDrawer(),
       body: Stack(
         children: [
-          
           // Checkered floor - Figma: (-120, 502.79), size: 626.765x213.1
           Positioned(
             left: -120 * scaleX,
@@ -46,12 +47,12 @@ class GuideScreen extends StatelessWidget {
             ),
           ),
           
-          // Gradient overlay - Figma: (-27.78, 538.62), size: 435.768x132.667
+          // Gradient overlay - covers entire checkered floor
           Positioned(
-            left: -27.78 * scaleX,
-            top: 538.62 * scaleY,
-            width: 435.768 * scaleX,
-            height: 132.667 * scaleY,
+            left: -120 * scaleX,
+            top: 502.79 * scaleY,
+            width: 626.765 * scaleX,
+            height: 213.1 * scaleY,
             child: Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -66,15 +67,59 @@ class GuideScreen extends StatelessWidget {
             ),
           ),
           
-          // Character image - Figma: center, size: 191.432x191.432
+          // Character image - Figma: left=99.28px (center - 95.716), top=326.78px (422-95.716)
           Positioned(
             left: (screenWidth / 2) - (191.432 * scaleX / 2),
-            top: (screenHeight / 2) + (32.63 * scaleY) - (191.432 * scaleY / 2),
+            top: 326.78 * scaleY,
             width: 191.432 * scaleX,
             height: 191.432 * scaleY,
             child: SvgPicture.asset(
               'assets/images/character_main.svg',
               fit: BoxFit.contain,
+            ),
+          ),
+          
+          // Title "Nikeypoint" - Figma: center top, top: 202.5px
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 202.5 * scaleY,
+            child: Center(
+              child: Text(
+                'Nikeypoint',
+                style: TextStyle(
+                  fontSize: 36.582 * ((scaleX + scaleY) / 2),
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+          
+          // Top bar with menu icon - Figma: top: 68px
+          Positioned(
+            right: 20 * scaleX,
+            top: 68 * scaleY,
+            child: Builder(
+              builder: (context) => GestureDetector(
+                onTap: () {
+                  Scaffold.of(context).openEndDrawer();
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  child: SvgPicture.asset(
+                    'assets/images/menu_icon.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: const ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
           
@@ -84,7 +129,7 @@ class GuideScreen extends StatelessWidget {
             top: 730 * scaleY,
             right: 20 * scaleX,
             child: CtaButton(
-              text: '다음으로',
+              text: '시작하기',
               variant: CtaButtonVariant.active,
               onPressed: () {
                 Navigator.push(

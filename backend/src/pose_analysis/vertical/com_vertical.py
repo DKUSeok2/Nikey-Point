@@ -33,18 +33,18 @@ def calculate_vertical_oscillation(xyzv: np.ndarray, pixel_heights: dict) -> flo
 
     # 결측치 보간 (선형 보간)
     com_y_arr[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), com_y_arr[~mask])
-
+    
     # 이동 평균으로 데이터 부드럽게 (window=15, 데이터 길이에 맞게 조정)
     smooth_window = min(15, len(com_y_arr))
     if smooth_window % 2 == 0:
         smooth_window -= 1  # 홀수로 만들기
-    smoothed = np.convolve(com_y_arr, np.ones(smooth_window) / smooth_window, mode='same')
+    smoothed = np.convolve(com_y_arr, np.ones(smooth_window)/smooth_window, mode='same')
 
     # 3. 추세 제거 (Detrending) - 순수 진동 성분만 추출
     trend_window = min(101, len(smoothed))
     if trend_window % 2 == 0:
         trend_window -= 1  # 홀수로 만들기
-    trend = np.convolve(smoothed, np.ones(trend_window) / trend_window, mode='same')
+    trend = np.convolve(smoothed, np.ones(trend_window)/trend_window, mode='same')
     pure_oscillation = smoothed - trend
 
     # 4. 수직 진폭(Range) 계산 (30프레임 윈도우 내 max - min)

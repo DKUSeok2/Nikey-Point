@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -5,8 +6,28 @@ import '../widgets/cta_button.dart';
 import 'personal_info_screen.dart';
 
 /// Guide screen 5 - Full body requirement
-class Guide5Screen extends StatelessWidget {
+class Guide5Screen extends StatefulWidget {
   const Guide5Screen({super.key});
+
+  @override
+  State<Guide5Screen> createState() => _Guide5ScreenState();
+}
+
+class _Guide5ScreenState extends State<Guide5Screen> {
+  bool _isButtonActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 3초 후 버튼 활성화
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _isButtonActive = true;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,97 +54,59 @@ class Guide5Screen extends StatelessWidget {
       backgroundColor: const Color(0xFF1C1C1E),
       body: Stack(
         children: [
-          // Back button and SKIP - Figma: (0, 59)
+          // Back button - Figma: (20, 68)
           Positioned(
-            left: 0,
-            top: 59 * scaleY,
-            width: 390 * scaleX,
-            height: 54 * scaleY,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20 * scaleX),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back button
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: SizedBox(
-                      width: 24 * scaleX,
-                      height: 24 * scaleY,
-                      child: SvgPicture.asset(
-                        'assets/images/back_icon.svg',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  // SKIP button
-                  GestureDetector(
-                    onTap: () {
-                      // TODO: Skip to main screen
-                    },
-                    child: Text(
-                      'SKIP',
-                      style: TextStyle(
-                        fontSize: 16 * scaleY,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white.withOpacity(0.6),
-                      ),
-                    ),
-                  ),
-                ],
+            left: 20 * scaleX,
+            top: 68 * scaleY,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: SizedBox(
+                width: 24 * scaleX,
+                height: 24 * scaleY,
+                child: SvgPicture.asset(
+                  'assets/images/left_arrow.svg',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
           
-          // Full body guide illustration - Figma: (0, 233)
+          // Main illustration - Figma: (0, 198.11)
           Positioned(
             left: 0,
-            top: 233 * scaleY,
+            top: 198.11 * scaleY,
             width: 390 * scaleX,
-            height: 260 * scaleY,
+            height: 321.61 * scaleY,
             child: Center(
               child: SvgPicture.asset(
-                'assets/images/fullbody_guide.svg',
+                'assets/images/guide4_main_illustration.svg',
                 width: 390 * scaleX,
-                height: 260 * scaleY,
+                height: 321.61 * scaleY,
                 fit: BoxFit.contain,
               ),
             ),
           ),
           
-          // Full body character overlay - Figma: (209.89, 303.63)
+          // Description text - Figma: (54, 543.72)
           Positioned(
-            left: 209.89 * scaleX,
-            top: 303.63 * scaleY,
-            child: SizedBox(
-              width: 120 * scaleX,
-              height: 135 * scaleY,
-              child: SvgPicture.asset(
-                'assets/images/character_fullbody.svg',
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          
-          // Description text - Figma: (66, 543)
-          Positioned(
-            left: 66 * scaleX,
-            top: 543 * scaleY,
-            width: 260 * scaleX,
+            left: 54 * scaleX,
+            top: 543.72 * scaleY,
+            width: 282 * scaleX,
             child: RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
                 style: TextStyle(
                   fontSize: 18 * scaleY,
+                  fontWeight: FontWeight.w400,
                   color: Colors.white.withOpacity(0.6),
-                  height: 1.4,
+                  height: 1.56,
                 ),
                 children: [
                   TextSpan(text: '영상에는 '),
                   TextSpan(
                     text: '전신',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: Colors.white,
                     ),
                   ),
@@ -131,8 +114,8 @@ class Guide5Screen extends StatelessWidget {
                   TextSpan(
                     text: '모두',
                     style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.6),
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
                   ),
                   TextSpan(text: ' 나와야해요'),
@@ -145,30 +128,11 @@ class Guide5Screen extends StatelessWidget {
           Positioned(
             left: 164 * scaleX,
             top: 685 * scaleY,
-            child: Row(
-              children: [
-                // Inactive indicators (first three)
-                for (int i = 0; i < 3; i++) ...[
-                  Container(
-                    width: 8 * scaleX,
-                    height: 8 * scaleY,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  SizedBox(width: 6 * scaleX),
-                ],
-                // Active indicator (fourth/last page)
-                Container(
-                  width: 20 * scaleX,
-                  height: 8 * scaleY,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00DCFF),
-                    borderRadius: BorderRadius.circular(4 * scaleX),
-                  ),
-                ),
-              ],
+            child: SvgPicture.asset(
+              'assets/images/page_indicator.svg',
+              width: 62 * scaleX,
+              height: 8 * scaleY,
+              fit: BoxFit.contain,
             ),
           ),
           
@@ -179,14 +143,16 @@ class Guide5Screen extends StatelessWidget {
             right: 20 * scaleX,
             child: CtaButton(
               text: '다음으로',
-              variant: CtaButtonVariant.active,
+              variant: _isButtonActive ? CtaButtonVariant.active : CtaButtonVariant.disabled,
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PersonalInfoScreen(),
-                  ),
-                );
+                if (_isButtonActive) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PersonalInfoScreen(),
+                    ),
+                  );
+                }
               },
             ),
           ),
