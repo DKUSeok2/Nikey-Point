@@ -93,6 +93,11 @@ overlays_dir = Path("/app/storage/overlays")
 overlays_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/storage/overlays", StaticFiles(directory=str(overlays_dir)), name="overlays")
 
+# Mount static files for keypoint videos
+keypoints_dir = Path("/app/storage/keypoints")
+keypoints_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/storage/keypoints", StaticFiles(directory=str(keypoints_dir)), name="keypoints")
+
 
 # Health check endpoints
 @app.get("/", tags=["health"])

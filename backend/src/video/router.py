@@ -65,6 +65,7 @@ def get_video_status(
     return VideoStatusResponse(
         video_id=video.id,
         status=video.status,
+        processing_step=video.processing_step,
         uploaded_at=video.uploaded_at,
         processed_at=video.processed_at,
         error_message=video.error_message,

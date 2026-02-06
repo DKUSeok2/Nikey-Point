@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../widgets/cta_button.dart';
+import '../providers/user_provider.dart';
+import '../providers/video_provider.dart';
+import '../services/api_service.dart';
 import 'video_upload_screen.dart';
 
 /// Personal information input screen (Name and Height)
@@ -14,12 +18,94 @@ class PersonalInfoScreen extends StatefulWidget {
 class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _heightController = TextEditingController();
+  final ApiService _apiService = ApiService();
+  bool _isLoading = false;
+  bool _isButtonEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to text changes to enable/disable button
+    _nameController.addListener(_updateButtonState);
+    _heightController.addListener(_updateButtonState);
+  }
+
+  void _updateButtonState() {
+    final hasName = _nameController.text.trim().isNotEmpty;
+    final hasHeight = _heightController.text.trim().isNotEmpty;
+    setState(() {
+      _isButtonEnabled = hasName && hasHeight;
+    });
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _heightController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleSubmit() async {
+    // Validate inputs
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이름을 입력해주세요')),
+      );
+      return;
+    }
+
+    if (_heightController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('키를 입력해주세요')),
+      );
+      return;
+    }
+
+    final height = double.tryParse(_heightController.text);
+    if (height == null || height < 100 || height > 250) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('키는 100~250cm 사이로 입력해주세요')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Create user in backend
+      final response = await _apiService.createUser(
+        userName: _nameController.text,
+        height: height,
+      );
+
+      if (mounted) {
+        // Save user info to provider
+        final userProvider = context.read<UserProvider>();
+        userProvider.setUserInfo(response['id'], height);
+        
+        // Save user name to VideoProvider (for history display)
+        final videoProvider = context.read<VideoProvider>();
+        videoProvider.setUserName(_nameController.text);
+
+        // Navigate to video upload screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const VideoUploadScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('오류: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -85,22 +171,25 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             child: Container(
               height: 38 * scaleY,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withOpacity(0.1),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withOpacity(
+                    _nameController.text.trim().isNotEmpty ? 0.6 : 0.2,
+                  ),
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: TextField(
                 controller: _nameController,
+                textAlignVertical: TextAlignVertical.center,
                 style: TextStyle(
                   fontSize: 14 * scaleY,
                   fontWeight: FontWeight.w500,
                   color: Colors.white,
                 ),
                 decoration: InputDecoration(
-                  hintText: '이름',
+                  hintText: '이름을 입력해주세요',
                   hintStyle: TextStyle(
                     fontSize: 14 * scaleY,
                     fontWeight: FontWeight.w500,
@@ -111,6 +200,8 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     vertical: 10 * scaleY,
                   ),
                   border: InputBorder.none,
+                  filled: true,
+                  fillColor: Colors.transparent,
                 ),
               ),
             ),
@@ -130,23 +221,26 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             ),
           ),
           
-          // Height input field - Figma: (195, 256), width: 120
+          // Height input field - Figma: (195, 256), width: 130
           Positioned(
             left: 195 * scaleX,
             top: 256 * scaleY,
-            width: 120 * scaleX,
+            width: 130 * scaleX,
             child: Container(
               height: 38 * scaleY,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withOpacity(0.1),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
+                  color: Colors.white.withOpacity(
+                    _heightController.text.trim().isNotEmpty ? 0.6 : 0.2,
+                  ),
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: TextField(
                 controller: _heightController,
+                textAlignVertical: TextAlignVertical.center,
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
@@ -157,7 +251,7 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   color: Colors.white,
                 ),
                 decoration: InputDecoration(
-                  hintText: '이름',
+                  hintText: '키를 입력해주세요',
                   hintStyle: TextStyle(
                     fontSize: 14 * scaleY,
                     fontWeight: FontWeight.w500,
@@ -168,14 +262,16 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                     vertical: 10 * scaleY,
                   ),
                   border: InputBorder.none,
+                  filled: true,
+                  fillColor: Colors.transparent,
                 ),
               ),
             ),
           ),
           
-          // CM label - Figma: (329, 266)
+          // CM label - Figma: (339, 266)
           Positioned(
-            left: 329 * scaleX,
+            left: 339 * scaleX,
             top: 266 * scaleY,
             child: Text(
               'CM',
@@ -192,22 +288,13 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
             left: 20 * scaleX,
             top: 730 * scaleY,
             right: 20 * scaleX,
-            child: CtaButton(
-              text: '다음으로',
-              variant: CtaButtonVariant.active,
-              onPressed: () {
-                // Validate inputs and proceed
-                if (_nameController.text.isNotEmpty && 
-                    _heightController.text.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const VideoUploadScreen(),
-                    ),
-                  );
-                }
-              },
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : CtaButton(
+                    text: '다음으로',
+                    variant: _isButtonEnabled ? CtaButtonVariant.active : CtaButtonVariant.disabled,
+                    onPressed: _isButtonEnabled ? _handleSubmit : null,
+                  ),
           ),
         ],
       ),

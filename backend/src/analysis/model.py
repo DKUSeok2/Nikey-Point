@@ -16,6 +16,7 @@ class UserData(Base):
     
     # Video paths
     original_video_path = Column(String, nullable=False)
+    keypoint_video_path = Column(String, nullable=True)  # Video with keypoints drawn
     
     # Overstride analysis
     overstride_overlay_path = Column(String, nullable=True)
@@ -37,7 +38,7 @@ class UserData(Base):
     completed_at = Column(DateTime, nullable=True)
     
     # Relationships
-    # user = relationship("User")  # Simplified, no back_populates
+    user = relationship("User", foreign_keys=[user_id])
     
     def __repr__(self) -> str:
         return f"<UserData(id={self.id}, user_id={self.user_id})>"

@@ -38,6 +38,9 @@ def get_latest_result(user_id: str, db: Session = Depends(get_db)):
     
     return {
         "id": result.id,
+        "video_path": result.keypoint_video_path or result.original_video_path,  # Keypoint 영상 우선
+        "original_video_path": result.original_video_path,
+        "keypoint_video_path": result.keypoint_video_path,
         "metrics": {
             "overstride": result.overstride_avg,
             "tilt": result.tilt_avg,
@@ -54,6 +57,52 @@ def get_latest_result(user_id: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/history")
+def get_all_history(
+    limit: int = 30,
+    db: Session = Depends(get_db)
+):
+    """
+    전체 분석 결과 히스토리 조회 (모든 사용자)
+    
+    - **limit**: 최대 조회 개수 (기본 30개)
+    
+    Returns:
+        - **user_name**: 사용자 이름
+        - **metrics**: 3가지 지표 값
+        - **llm_feedback**: AI 피드백
+        - **overlays**: 오버레이 영상 경로
+        - **created_at**: 분석 시작 시간
+    """
+    results = db.query(UserData)\
+        .order_by(UserData.created_at.desc())\
+        .limit(limit)\
+        .all()
+    
+    return [
+        {
+            "id": r.id,
+            "user_name": r.user.user_name if r.user else "사용자",
+            "created_at": r.created_at,
+            "video_path": r.keypoint_video_path or r.original_video_path,
+            "original_video_path": r.original_video_path,
+            "keypoint_video_path": r.keypoint_video_path,
+            "metrics": {
+                "overstride": r.overstride_avg,
+                "tilt": r.tilt_avg,
+                "vertical": r.com_vertical_avg
+            },
+            "llm_feedback": r.llm_feedback,
+            "overlays": {
+                "overstride": r.overstride_overlay_path,
+                "tilt": r.tilt_overlay_path,
+                "vertical": r.com_vertical_overlay_path
+            }
+        }
+        for r in results
+    ]
+
+
 @router.get("/user/{user_id}/history")
 def get_analysis_history(
     user_id: str,
@@ -61,7 +110,7 @@ def get_analysis_history(
     db: Session = Depends(get_db)
 ):
     """
-    분석 결과 히스토리 조회
+    특정 사용자의 분석 결과 히스토리 조회
     
     - **user_id**: 사용자 ID
     - **limit**: 최대 조회 개수 (기본 10개)
@@ -81,7 +130,11 @@ def get_analysis_history(
     return [
         {
             "id": r.id,
+            "user_name": r.user.user_name if r.user else "사용자",
             "created_at": r.created_at,
+            "video_path": r.keypoint_video_path or r.original_video_path,
+            "original_video_path": r.original_video_path,
+            "keypoint_video_path": r.keypoint_video_path,
             "metrics": {
                 "overstride": r.overstride_avg,
                 "tilt": r.tilt_avg,

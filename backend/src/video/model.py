@@ -27,6 +27,8 @@ class Video(Base):
         nullable=False,
     )  # uploaded, processing, completed, failed
     
+    processing_step = Column(String, nullable=True)  # extracting_keypoints, calculating_metrics, generating_feedback, completed
+    
     error_message = Column(String, nullable=True)
     
     # Timestamps

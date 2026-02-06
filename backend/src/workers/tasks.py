@@ -70,9 +70,20 @@ def analyze_video_task(video_id: str):
             return {"status": "failed", "error": "Video not found"}
         
         video.status = "processing"
+        
+        # 2. 먼저 Pixel heights 계산
+        video.processing_step = "extracting_height"
         db.commit()
         
-        # 2. Keypoint 추출 + 캐싱
+        from ..pose_detection.extract_height import get_pixel_heights
+        
+        pixel_heights = get_pixel_heights(video.file_path)
+        logger.info(f"Pixel heights 계산 완료")
+        
+        # 3. 그 다음 Keypoint 추출 + 캐싱
+        video.processing_step = "extracting_keypoints"
+        db.commit()
+        
         from ..pose_detection.extract_keypoints import PoseDetectionService
         from pathlib import Path
         import numpy as np
@@ -81,12 +92,6 @@ def analyze_video_task(video_id: str):
         frames, xyzv = pose_service.extract_keypoints_numpy(video_path=video.file_path)
         
         logger.info(f"Keypoint 추출 완료: {len(frames)} frames")
-        
-        # 3. Pixel heights 계산
-        from ..pose_detection.extract_height import get_pixel_heights
-        
-        pixel_heights = get_pixel_heights(video.file_path)
-        logger.info(f"Pixel heights 계산 완료")
         
         # 4. Keypoints 캐싱 (오버레이 생성용)
         import pickle
@@ -109,7 +114,27 @@ def analyze_video_task(video_id: str):
         
         logger.info(f"Keypoints 캐싱 완료: {cache_file}")
         
+        # 4.5. Keypoint 영상 생성
+        logger.info("Keypoint 영상 생성 시작")
+        from ..pose_detection.generate_keypoint_video import generate_keypoint_video
+        
+        keypoint_video_dir = Path("/app/storage/keypoints")
+        keypoint_video_dir.mkdir(parents=True, exist_ok=True)
+        keypoint_video_path = str(keypoint_video_dir / f"{video_id}_keypoints.mp4")
+        
+        generate_keypoint_video(
+            video_path=video.file_path,
+            output_path=keypoint_video_path,
+            frames=frames,
+            xyzv=xyzv
+        )
+        
+        logger.info(f"Keypoint 영상 생성 완료: {keypoint_video_path}")
+        
         # 5. 3가지 지표 계산
+        video.processing_step = "calculating_metrics"
+        db.commit()
+        
         from ..analysis.service import AnalysisService
         
         service = AnalysisService()
@@ -123,6 +148,9 @@ def analyze_video_task(video_id: str):
         logger.info(f"지표 계산 완료: {metrics}")
         
         # 6. LLM 피드백 생성
+        video.processing_step = "generating_feedback"
+        db.commit()
+        
         from ..feedback.service import FeedbackService
         from ..user.model import User
         
@@ -146,6 +174,7 @@ def analyze_video_task(video_id: str):
         result = UserData(
             user_id=video.user_id,
             original_video_path=video.file_path,
+            keypoint_video_path=keypoint_video_path,
             overstride_avg=metrics['overstride'],
             tilt_avg=metrics['tilt'],
             com_vertical_avg=metrics['vertical'],
@@ -158,12 +187,13 @@ def analyze_video_task(video_id: str):
         
         db.add(result)
         video.status = "completed"
+        video.processing_step = "completed"
         db.commit()
         
         logger.info(f"✅ 분석 완료 (피드백): user_data_id={result.id}")
         
         # 8. 오버레이 백그라운드 실행 (캐시 경로 전달)
-        logger.info(f"🎬 오버레이 백그라운드 실행 시작 (Tilt, Overstride)")
+        logger.info(f"🎬 오버레이 백그라운드 실행 시작 (Tilt, Overstride, Vertical)")
         
         # Tilt 오버레이
         create_tilt_overlay_task.apply_async(
@@ -175,6 +205,12 @@ def analyze_video_task(video_id: str):
         create_overstride_overlay_task.apply_async(
             args=[result.id, video.file_path, str(cache_file)],
             countdown=2  # Tilt보다 1초 늦게 시작
+        )
+        
+        # Vertical 오버레이
+        create_vertical_overlay_task.apply_async(
+            args=[result.id, video.file_path, str(cache_file)],
+            countdown=3  # Overstride보다 1초 늦게 시작
         )
         
         return {
@@ -418,6 +454,95 @@ def create_overstride_overlay_task(user_data_id: str, video_path: str, keypoints
         
     except Exception as exc:
         logger.error(f"❌ Overstride 오버레이 실패: {exc}", exc_info=True)
+        db.rollback()
+        return {
+            "status": "failed",
+            "user_data_id": user_data_id,
+            "error": str(exc)
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task
+def create_vertical_overlay_task(user_data_id: str, video_path: str, keypoints_cache_path: str):
+    """
+    Vertical (무게중심 상하 움직임) 오버레이 영상 생성 (백그라운드)
+    
+    Args:
+        user_data_id: UserData ID
+        video_path: 원본 영상 경로
+        keypoints_cache_path: 캐싱된 keypoints 파일 경로 (.npz)
+    """
+    from ..core.database import SessionLocal
+    from ..analysis.model import UserData
+    from ..pose_analysis.vertical.vertical_overlay import (
+        make_vertical_overlay,
+        VerticalOverlayConfig
+    )
+    from pathlib import Path
+    import numpy as np
+    import pickle
+    
+    db = SessionLocal()
+    
+    try:
+        logger.info(f"Vertical 오버레이 생성 시작: user_data_id={user_data_id}")
+        
+        # 1. UserData 조회
+        user_data = db.query(UserData).filter(UserData.id == user_data_id).first()
+        if not user_data:
+            raise ValueError(f"UserData not found: {user_data_id}")
+        
+        # 2. 캐싱된 Keypoints 로드
+        cache_path = Path(keypoints_cache_path)
+        if not cache_path.exists():
+            raise ValueError(f"Keypoints 캐시 파일이 없습니다: {cache_path}")
+        
+        cached_data = np.load(cache_path)
+        frames = cached_data['frames']
+        xyzv = cached_data['xyzv']
+        
+        # pixel_heights dict 로드
+        heights_dict_file = cache_path.parent / f"{cache_path.stem}_heights.pkl"
+        with open(heights_dict_file, 'rb') as f:
+            pixel_heights = pickle.load(f)
+        
+        logger.info(f"✅ 캐싱된 Keypoints 로드 완료: {len(frames)} frames")
+        
+        # 3. Overlay 영상 생성
+        overlay_filename = f"vertical_overlay_{user_data_id}.mp4"
+        overlay_path = Path("/app/storage/overlays") / overlay_filename
+        overlay_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        cfg = VerticalOverlayConfig(rotate_mode=None)  # 회전 없음 (세로 영상 그대로)
+        
+        result_metrics = make_vertical_overlay(
+            video_path=video_path,
+            frames=frames,
+            xyzv=xyzv,
+            pixel_heights=pixel_heights,
+            output_path=str(overlay_path),
+            cfg=cfg
+        )
+        
+        logger.info(f"Vertical 오버레이 생성 완료: {overlay_path}, metrics={result_metrics}")
+        
+        # 4. DB 업데이트
+        user_data.com_vertical_overlay_path = f"/storage/overlays/{overlay_filename}"
+        db.commit()
+        
+        logger.info(f"✅ Vertical 오버레이 완료: user_data_id={user_data_id}")
+        
+        return {
+            "status": "success",
+            "user_data_id": user_data_id,
+            "overlay_path": str(overlay_path),
+            "metrics": result_metrics
+        }
+        
+    except Exception as exc:
+        logger.error(f"❌ Vertical 오버레이 실패: {exc}", exc_info=True)
         db.rollback()
         return {
             "status": "failed",
