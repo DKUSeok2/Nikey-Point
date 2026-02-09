@@ -460,7 +460,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
   // Overstride card: 정상 범위 중심으로 조정 (정상: 0~0.18)
   Widget _buildOverstrideCard(double scaleX, double scaleY, AnalysisResult result) {
-    final value = result.metrics.overstride;
+    final value = result.metrics.overstride ?? 0.0;
     final normalMin = 0.0;
     final normalMax = 0.18;
     final normalRange = normalMax - normalMin;
@@ -484,7 +484,7 @@ class _ResultScreenState extends State<ResultScreen> {
       title: '오버스트라이드',
       status: result.overstrideStatus,
       value: value,
-      valueText: value.toStringAsFixed(2),
+      valueText: result.metrics.overstride != null ? value.toStringAsFixed(2) : '-',
       position: position,
       score: score,
       normalRangeStart: normalRangeStart,
@@ -507,7 +507,7 @@ class _ResultScreenState extends State<ResultScreen> {
   
   // Tilt card: 정상 범위 중심으로 조정 (절댓값 기준, 정상: 72~88)
   Widget _buildTiltCard(double scaleX, double scaleY, AnalysisResult result) {
-    final value = result.metrics.tilt;
+    final value = result.metrics.tilt ?? -80.0;
     final absValue = value.abs(); // 절댓값 (표시용)
     
     // 음수 범위로 계산 (더 음수 = 왼쪽)
@@ -540,7 +540,7 @@ class _ResultScreenState extends State<ResultScreen> {
       title: '상체 기울기',
       status: result.tiltStatus,
       value: value,
-      valueText: '${value.toStringAsFixed(1)}°', // 음수 그대로 표시
+      valueText: result.metrics.tilt != null ? '${value.toStringAsFixed(1)}°' : '-', // 음수 그대로 표시
       position: position,
       score: score,
       normalRangeStart: normalRangeStart,
@@ -563,7 +563,7 @@ class _ResultScreenState extends State<ResultScreen> {
   
   // Vertical card: 정상 범위 중심으로 조정 (정상: 0.10~0.41)
   Widget _buildVerticalCard(double scaleX, double scaleY, AnalysisResult result) {
-    final value = result.metrics.vertical;
+    final value = result.metrics.vertical ?? 0.045;
     final normalMin = 0.01;
     final normalMax = 0.08;
     final normalRange = normalMax - normalMin;
@@ -594,7 +594,7 @@ class _ResultScreenState extends State<ResultScreen> {
       title: '무게 중심 상하 움직임',
       status: result.verticalStatus,
       value: value,
-      valueText: value.toStringAsFixed(2),
+      valueText: result.metrics.vertical != null ? value.toStringAsFixed(2) : '-',
       position: position,
       score: score,
       normalRangeStart: normalRangeStart,

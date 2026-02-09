@@ -1,20 +1,20 @@
 /// Analysis metrics
 class AnalysisMetrics {
-  final double overstride;
-  final double tilt;
-  final double vertical;
+  final double? overstride;
+  final double? tilt;
+  final double? vertical;
 
   AnalysisMetrics({
-    required this.overstride,
-    required this.tilt,
-    required this.vertical,
+    this.overstride,
+    this.tilt,
+    this.vertical,
   });
 
   factory AnalysisMetrics.fromJson(Map<String, dynamic> json) {
     return AnalysisMetrics(
-      overstride: (json['overstride'] as num).toDouble(),
-      tilt: (json['tilt'] as num).toDouble(),
-      vertical: (json['vertical'] as num).toDouble(),
+      overstride: json['overstride'] != null ? (json['overstride'] as num).toDouble() : null,
+      tilt: json['tilt'] != null ? (json['tilt'] as num).toDouble() : null,
+      vertical: json['vertical'] != null ? (json['vertical'] as num).toDouble() : null,
     );
   }
 }
@@ -85,17 +85,19 @@ class AnalysisResult {
 
   /// Get status text for overstride
   String get overstrideStatus {
-    if (metrics.overstride <= 0.18) return '정상';
-    if (metrics.overstride <= 0.25) return '주의';
+    if (metrics.overstride == null) return '측정 불가';
+    if (metrics.overstride! <= 0.18) return '정상';
+    if (metrics.overstride! <= 0.25) return '주의';
     return '비정상';
   }
 
   /// Get status color for overstride
-  bool get isOverstrideNormal => metrics.overstride <= 0.18;
+  bool get isOverstrideNormal => metrics.overstride != null && metrics.overstride! <= 0.18;
 
   /// Get status text for tilt
   String get tiltStatus {
-    final absTilt = metrics.tilt.abs();
+    if (metrics.tilt == null) return '측정 불가';
+    final absTilt = metrics.tilt!.abs();
     if (absTilt >= 72 && absTilt <= 92) return '정상';
     if (absTilt >= 65 && absTilt <= 100) return '주의';
     return '비정상';
@@ -103,11 +105,12 @@ class AnalysisResult {
 
   /// Get status text for vertical
   String get verticalStatus {
-    if (metrics.vertical >= 0.01 && metrics.vertical <= 0.08) return '정상';
-    if (metrics.vertical >= 0.005 && metrics.vertical <= 0.10) return '주의';
+    if (metrics.vertical == null) return '측정 불가';
+    if (metrics.vertical! >= 0.01 && metrics.vertical! <= 0.08) return '정상';
+    if (metrics.vertical! >= 0.005 && metrics.vertical! <= 0.10) return '주의';
     return '비정상';
   }
   
   /// Get status color for vertical
-  bool get isVerticalNormal => metrics.vertical >= 0.01 && metrics.vertical <= 0.08;
+  bool get isVerticalNormal => metrics.vertical != null && metrics.vertical! >= 0.01 && metrics.vertical! <= 0.08;
 }

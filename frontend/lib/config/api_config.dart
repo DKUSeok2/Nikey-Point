@@ -9,10 +9,12 @@ class ApiConfig {
       return 'http://10.0.2.2:8000';
     } else if (Platform.isIOS) {
       // iOS 실제 기기는 Mac의 Wi-Fi IP 사용 (시뮬레이터도 동일)
-      return 'http://192.168.219.212:8000';
+      // ⚠️ 와이파이 변경 시 이 IP 주소를 Mac의 새 IP로 변경하세요
+      // 현재 IP 확인: 시스템 환경설정 > 네트워크 또는 터미널에서 `ifconfig | grep "inet "`
+      return 'http://192.168.0.125:8000';
     } else {
       // 기타 플랫폼 (웹 등)
-      return 'http://192.168.219.212:8000';
+      return 'http://192.168.0.125:8000';
     }
   }
   
