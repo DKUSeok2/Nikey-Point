@@ -28,6 +28,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _loadHistory() async {
     try {
+      if (!mounted) return;
       setState(() {
         _isLoading = true;
         _error = null;
@@ -36,11 +37,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // 모든 사용자의 히스토리 가져오기
       final history = await _apiService.getAllHistory(limit: 30);
 
+      if (!mounted) return;
       setState(() {
         _historyList = history;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = '히스토리를 불러오는 데 실패했습니다: $e';
         _isLoading = false;

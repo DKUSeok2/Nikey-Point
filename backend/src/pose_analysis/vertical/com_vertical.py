@@ -48,8 +48,14 @@ def calculate_vertical_oscillation(xyzv: np.ndarray, pixel_heights: dict) -> flo
     pure_oscillation = smoothed - trend
 
     # 4. 수직 진폭(Range) 계산 (30프레임 윈도우 내 max - min)
+    # 처음 30프레임과 마지막 30프레임 제외 (이상치 제거)
+    skip_frames = 30
     ranges = []
-    for i in range(len(pure_oscillation) - 30):
+    
+    start_idx = skip_frames
+    end_idx = max(start_idx, len(pure_oscillation) - 30 - skip_frames)
+    
+    for i in range(start_idx, end_idx):
         window = pure_oscillation[i: i + 30]
         ranges.append(np.max(window) - np.min(window))
 

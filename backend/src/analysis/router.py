@@ -36,15 +36,23 @@ def get_latest_result(user_id: str, db: Session = Depends(get_db)):
     if not result:
         raise HTTPException(404, "분석 결과가 없습니다")
     
+    import math
+    
+    # NaN 값을 None으로 변환 (JSON 호환)
+    def safe_float(value):
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return None
+        return value
+    
     return {
         "id": result.id,
         "video_path": result.keypoint_video_path or result.original_video_path,  # Keypoint 영상 우선
         "original_video_path": result.original_video_path,
         "keypoint_video_path": result.keypoint_video_path,
         "metrics": {
-            "overstride": result.overstride_avg,
-            "tilt": result.tilt_avg,
-            "vertical": result.com_vertical_avg
+            "overstride": safe_float(result.overstride_avg),
+            "tilt": safe_float(result.tilt_avg),
+            "vertical": safe_float(result.com_vertical_avg)
         },
         "llm_feedback": result.llm_feedback,
         "overlays": {
@@ -74,6 +82,13 @@ def get_all_history(
         - **overlays**: 오버레이 영상 경로
         - **created_at**: 분석 시작 시간
     """
+    import math
+    
+    def safe_float(value):
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return None
+        return value
+    
     results = db.query(UserData)\
         .order_by(UserData.created_at.desc())\
         .limit(limit)\
@@ -88,9 +103,9 @@ def get_all_history(
             "original_video_path": r.original_video_path,
             "keypoint_video_path": r.keypoint_video_path,
             "metrics": {
-                "overstride": r.overstride_avg,
-                "tilt": r.tilt_avg,
-                "vertical": r.com_vertical_avg
+                "overstride": safe_float(r.overstride_avg),
+                "tilt": safe_float(r.tilt_avg),
+                "vertical": safe_float(r.com_vertical_avg)
             },
             "llm_feedback": r.llm_feedback,
             "overlays": {
@@ -121,6 +136,13 @@ def get_analysis_history(
         - **overlays**: 오버레이 영상 경로
         - **created_at**: 분석 시작 시간
     """
+    import math
+    
+    def safe_float(value):
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return None
+        return value
+    
     results = db.query(UserData)\
         .filter(UserData.user_id == user_id)\
         .order_by(UserData.created_at.desc())\
@@ -136,9 +158,9 @@ def get_analysis_history(
             "original_video_path": r.original_video_path,
             "keypoint_video_path": r.keypoint_video_path,
             "metrics": {
-                "overstride": r.overstride_avg,
-                "tilt": r.tilt_avg,
-                "vertical": r.com_vertical_avg
+                "overstride": safe_float(r.overstride_avg),
+                "tilt": safe_float(r.tilt_avg),
+                "vertical": safe_float(r.com_vertical_avg)
             },
             "llm_feedback": r.llm_feedback,
             "overlays": {

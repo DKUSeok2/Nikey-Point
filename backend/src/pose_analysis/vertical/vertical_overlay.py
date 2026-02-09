@@ -208,6 +208,8 @@ def make_vertical_overlay(
                 return cand
 
     t = 0
+    skip_frames = 30  # 처음과 끝 30프레임 제외
+    
     while True:
         ret, frame = cap.read()
         if not ret or t >= T:
@@ -218,10 +220,16 @@ def make_vertical_overlay(
 
         r = float(ratio[t])
 
-        # ✅ 정상/비정상 색상 결정
-        is_good = (cfg.good_lo <= r <= cfg.good_hi)
-        overlay_color = (0, 255, 0) if is_good else (0, 0, 255)  # green / red
-        hud_border = overlay_color
+        # ✅ 첫 30프레임 또는 마지막 30프레임은 회색으로 표시
+        if t < skip_frames or t >= (T - skip_frames):
+            overlay_color = (128, 128, 128)  # 회색 (대기 구간)
+            hud_border = overlay_color
+            is_good = False  # 평가 안함
+        else:
+            # 정상/비정상 색상 결정
+            is_good = (cfg.good_lo <= r <= cfg.good_hi)
+            overlay_color = (0, 255, 0) if is_good else (0, 0, 255)  # green / red
+            hud_border = overlay_color
 
         # =========================
         # Skeleton (선택)

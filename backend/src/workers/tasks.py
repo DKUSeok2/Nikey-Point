@@ -279,7 +279,7 @@ def create_tilt_overlay_task(user_data_id: str, video_path: str, keypoints_cache
         if not cache_path.exists():
             raise ValueError(f"Keypoints 캐시 파일이 없습니다: {cache_path}")
         
-        cached_data = np.load(cache_path)
+        cached_data = np.load(cache_path, allow_pickle=True)
         frames = cached_data['frames']
         xyzv = cached_data['xyzv']
         heights_array = cached_data['pixel_heights']
@@ -383,7 +383,7 @@ def create_overstride_overlay_task(user_data_id: str, video_path: str, keypoints
         if not cache_path.exists():
             raise ValueError(f"Keypoints 캐시 파일이 없습니다: {cache_path}")
         
-        cached_data = np.load(cache_path)
+        cached_data = np.load(cache_path, allow_pickle=True)
         frames = cached_data['frames']
         xyzv = cached_data['xyzv']
         
@@ -499,7 +499,7 @@ def create_vertical_overlay_task(user_data_id: str, video_path: str, keypoints_c
         if not cache_path.exists():
             raise ValueError(f"Keypoints 캐시 파일이 없습니다: {cache_path}")
         
-        cached_data = np.load(cache_path)
+        cached_data = np.load(cache_path, allow_pickle=True)
         frames = cached_data['frames']
         xyzv = cached_data['xyzv']
         
